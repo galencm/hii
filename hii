@@ -10,7 +10,7 @@
 #     =========================================================================
 
 import _hydra_ctypes 
-import czmq
+import _czmq_ctypes
 import ctypes
 import time
 from PIL import Image,ImageDraw,ImageFont
@@ -117,7 +117,7 @@ def hydra_loop(binding):
                 #         f.write(ctypes.string_at(p,size=contents_size))
 
                 #zchunk adds some wrapping bytes
-                chunk = czmq.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
+                chunk = _czmq_ctypes.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
 
                 if display_created_image:
                     im = Image.open(io.BytesIO(contents))
@@ -125,7 +125,7 @@ def hydra_loop(binding):
                     im.close()
                 mime_type = b"image/jpeg"
                 post_id = hydra_service.store_chunk(subject.encode(),b"",mime_type,chunk)
-                #post_id = hydra_service.store_chunk(subject.encode(),b"",b"image/jpeg",czmq.Zchunk(contents,len(contents)))
+                #post_id = hydra_service.store_chunk(subject.encode(),b"",b"image/jpeg",_czmq_ctypes.Zchunk(contents,len(contents)))
                 print_post(post_id,subject,contents,feedback_max_chars)
             
             elif e == binding['make_b64_post']:
