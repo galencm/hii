@@ -74,7 +74,9 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     
     ```
     inotifywait -e modify,create,delete -r .hydra/ -m
-    ```
+    ```  
+    (run in parallel with pytest to see basic process)
+
 * Diff binaries using `vbindiff`
 
     ```

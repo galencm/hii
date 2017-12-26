@@ -11,6 +11,11 @@ import os
 import io
 from PIL import Image
 
+sys.path.insert(0, '.')
+import czmq
+import ctypes
+import hashlib
+
 def test_generate_words(word_count=3):
     assert len(hii.generate_words().split(" ")) == 3
 
@@ -23,6 +28,10 @@ def test_generate_image_bytes():
     assert image_extension =="JPEG" 
 
 def parse_zpl(file):
+    # ZeroMQ Property Language
+    # https://rfc.zeromq.org/spec:4/ZPL/
+    # 
+    # this just returns a dict by splitting strings 
     zpl_parsed =  {}
     lines = []
     with open(file,'r') as f:
@@ -35,6 +44,7 @@ def parse_zpl(file):
     return zpl_parsed
 
 def test_chunk_post():
+    #start hydra
     directory = b'.hydra'
     hydra_service = _hydra_ctypes.Hydra(directory)
     hydra_service.start()
@@ -53,6 +63,28 @@ def test_chunk_post():
     assert os.path.isfile(chunk_blob)
     assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
     assert len(post['contents']) == os.path.getsize(chunk_blob)
+
+    # having trouble getting Zchunk_read to work
+    # involves FILE* in python3 
+    # so: read bytes from file, create Zchunk with bytes
+    # calculate sha1 using Zchunk digest, calulate sha1 on read byes
+    raw_chunk = b''
+    with open(chunk_blob,'rb') as f:
+        raw_chunk = f.read()
+    p = ctypes.c_char_p(raw_chunk)
+    chunk = czmq.Zchunk(ctypes.string_at(p,size=len(raw_chunk)),len(raw_chunk))
+
+    # currently hyra code assumes 1 chunk for blobs
+    # though multipart is discussed in code
+    # from hydra docs: 
+    # README.txt:Every post has a content of zero or more octets. 
+    #            Hydra does not support multipart contents.
+    # README.txt-//TODO: extend to support multiple content parts.//
+
+    #TODO zchunk.read returns byte *
+    assert raw_chunk == bytearray.fromhex(chunk.strhex().decode())
+
+    #cleanup post/blob
     os.remove(latest_post)
     os.remove(chunk_blob)
 
@@ -75,6 +107,12 @@ def test_string_post():
     assert os.path.isfile(chunk_blob)
     assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
     assert len(post['contents']) == os.path.getsize(chunk_blob)
+    #check contents
+
+    with open(chunk_blob,'rb') as f:
+        assert f.read() == post['contents'].encode()
+
+    #cleanup post/blob    
     os.remove(latest_post)
     os.remove(chunk_blob)
 
@@ -97,6 +135,12 @@ def test_b64_post():
     assert os.path.isfile(chunk_blob)
     assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
     assert len(post['contents']) == os.path.getsize(chunk_blob)
+    
+    #check contents, b64 contents already bytes
+    with open(chunk_blob,'rb') as f:
+        assert f.read() == post['contents']
+    
+    #cleanup post/blob       
     os.remove(latest_post)
     os.remove(chunk_blob)
 
