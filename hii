@@ -10,7 +10,11 @@
 #     =========================================================================
 
 import _hydra_ctypes 
-import _czmq_ctypes
+import sys
+#import czmq as module 
+#due to ctypes type error with single file
+sys.path.insert(0, '.')
+import czmq
 import ctypes
 import time
 from PIL import Image,ImageDraw,ImageFont
@@ -25,17 +29,17 @@ import sys
 def print_feedback(message):
     print(message)
 
-def print_post(post_id,subject,contents,truncate_contents=0):
+def print_post(post,truncate_contents=100):
     if truncate_contents <= 0:
-        truncate_contents = len(contents)
-        truncated_sign = "\n               \n            [Contents size: {}]".format(len(contents))
+        truncate_contents = len(post['contents'])
+        truncated_sign = "\n               \n            [Contents size: {}]".format(len(post['contents']))
     else:
-        truncated_sign = "\n            ...\n            [Contents size: {}]".format(len(contents))
+        truncated_sign = "\n            ...\n            [Contents size: {}]".format(len(post['contents']))
 
     print()
-    print("Ident:      {}".format(post_id))
-    print("Subject:    {}".format(subject))
-    print("Contents:   {}{}".format(contents[0:truncate_contents],truncated_sign))
+    print("ident:      {}".format(post['ident']))
+    print("subject:    {}".format(post['subject']))
+    print("contents:   {}{}".format(post['contents'][0:truncate_contents],truncated_sign))
     print()
     print()
 
@@ -46,7 +50,10 @@ def generate_words(word_count=3):
         words = random.sample(lines,word_count)
     return ' '.join(words)
 
-def generate_image_bytes(caption_overlay):
+def generate_image_bytes(caption_overlay=None):
+    if caption_overlay is None:
+        caption_overlay = ""
+
     im = Image.new('RGBA', (500, 500), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
     font = ImageFont.truetype("FreeMono.ttf", 30)
@@ -67,128 +74,189 @@ def decode_b64(string_container):
         contents = string_container
     return base64.b64decode(contents)
 
-def hydra_loop(binding):
+def make_string_post(service,stdout_char_cutoff=100):
+    post = {}
+    post['subject'] = "hii_string: " + generate_words()
+    post['mime_type']="text/plain"
+    post['contents'] = generate_words(20)
+    post['parent_id']=""
+    # hydra returns a post identifier
+    post['ident'] = hydra_string_post(service,**post).decode()
+
+    print_post(post,stdout_char_cutoff)
+    return post
+
+def make_b64_post(service,display_created_image=False,stdout_char_cutoff=100):
+    post = {}
+    caption_on_image = generate_words()
+
+    post['subject'] = "hii_image_b64: " + caption_on_image
+    post['mime_type']="text/plain"
+    post['contents'] = encode_b64(generate_image_bytes(caption_on_image))
+    post['parent_id']=""
+    # hydra returns a post identifier
+    print(type(post['contents']))
+    post['ident'] = hydra_string_post(service,**post).decode() 
     
+    if display_created_image is True:
+        image_bytes = decode_b64(post['contents'])
+        im = Image.open(io.BytesIO(image_bytes))
+        im.show()
+        im.close()
+    print_post(post,stdout_char_cutoff)
+    return post
+
+
+def make_chunk_post(service,display_created_image=False,stdout_char_cutoff=100):
+    post = {}
+    caption_on_image = generate_words()
+
+    post['subject'] = "hii_image_chunk: " + caption_on_image
+    post['mime_type'] = "image/jpeg"
+    post['contents'] = generate_image_bytes(caption_on_image)
+    post['parent_id'] = ""
+    # hydra returns a post identifier
+    post['ident'] = hydra_chunk_post(service,**post).decode()
+
+    if display_created_image:
+        im = Image.open(io.BytesIO(post['contents']))
+        im.show()
+        im.close()
+    print_post(post,stdout_char_cutoff)
+    return post
+
+def hydra_string_post(service,*,subject,parent_id,mime_type,contents):
+    try:
+        contents = contents.encode()
+    except AttributeError:
+        #already encoded
+        pass
+    post_ident = service.store_string(subject.encode(),
+                                    parent_id.encode(),
+                                    mime_type.encode(),
+                                    contents)
+    return post_ident
+
+def hydra_chunk_post(service,*,subject,parent_id,mime_type,contents,debug_to_file=False):
+    mime_type = mime_type.encode()
+    #import czmq
+    #avoid zero-termination of contents
+    contents_size = len(contents)
+    p = ctypes.c_char_p(contents)
+    p2 = ctypes.cast(p,ctypes.POINTER(ctypes.c_char))
+    #print(ctypes.string_at(p,size=contents_size))
+
+    #vbindiff useful for debugging output
+    if debug_to_file:
+        #dump initial arg bytes and pointed bytes
+        with open("py_arg_bytes_value.foo",'wb+') as f:
+            f.write(contents)
+        with open("c_pointer_bytes_value.foo",'wb+') as f:
+            f.write(ctypes.string_at(p,size=contents_size))
+
+    #zchunk adds some wrapping bytes
+    chunk = czmq.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
+    #this gives a type error, see note on import czmq
+    #chunk = _czmq_ctypes.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
+    post_ident = service.store_chunk(subject.encode(),
+                                    parent_id.encode(),
+                                    mime_type,chunk)
+    return post_ident
+
+def end_service(service):
+    #call destructors
+    print("ending: {}".format(service))
+    del service
+
+def hydra_loop(binding,start_message=""):
     #init hydra service
     directory = b'.hydra'
     hydra_service = _hydra_ctypes.Hydra(directory)
     hydra_service.start()
 
     #config
-    display_created_image = False
-    feedback_max_chars = 100
-
+    tweaks = {}
+    tweaks['stdout_max_chars'] = 100
+    tweaks['preview_created'] = False
+    #print after hydra_service has logged ledger to stdout
+    print_feedback(start_message)
     with Input(keynames='curtsies') as input_generator:
         for e in Input():
+            #run on any input
+            if e in set(binding.values()):
+                print(tweaks)
+            else:
+                print("** unbound key **")
+                print("** showing help **")
+
+                print_feedback(start_message)
+
+            #handle bindings
             if e in (u'q',u'Q',u'<ESC>', u'<Ctrl-d>'):
-                del hydra_service
-                break
-            
+                end_service(hydra_service)
+                sys.exit(0)
+
             elif e == binding['tweak_more_screen_bytes']:
-                feedback_max_chars +=100
-                if feedback_max_chars <= 0:
-                    print_feedback("Show all contents".format(feedback_max_chars))
-                else:
-                    print_feedback("Show max {} chars of contents".format(feedback_max_chars))
-            
+                 tweaks['stdout_max_chars'] +=100
+
             elif e == binding['tweak_less_screen_bytes']:
-                feedback_max_chars -=100
-                if feedback_max_chars <= 0:
-                    print_feedback("Show all contents".format(feedback_max_chars))
-                else:
-                    print_feedback("Show max {} chars of contents".format(feedback_max_chars))
-            
+                 tweaks['stdout_max_chars'] -=100
+
             elif e == binding['make_chunk_post']:
-                post_id = None
-                caption = generate_words()
-                subject = "hii_image_chunk: " + caption
-                contents = generate_image_bytes(caption)
-                #avoid zero-termination of contents
-                contents_size = len(contents)
-                p = ctypes.c_char_p(contents)
-                p2 = ctypes.cast(p,ctypes.POINTER(ctypes.c_char))
-                #print(ctypes.string_at(p,size=contents_size))
+                make_chunk_post(hydra_service,display_created_image=tweaks['preview_created'])
 
-                #vbindiff useful for debugging output
-                # if debug:
-                #     with open("pbytes_value.foo",'wb+') as f:
-                #         f.write(contents)
-                #     with open("cbytes_value.foo",'wb+') as f:
-                #         f.write(ctypes.string_at(p,size=contents_size))
-
-                #zchunk adds some wrapping bytes
-                chunk = _czmq_ctypes.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
-
-                if display_created_image:
-                    im = Image.open(io.BytesIO(contents))
-                    im.show()
-                    im.close()
-                mime_type = b"image/jpeg"
-                post_id = hydra_service.store_chunk(subject.encode(),b"",mime_type,chunk)
-                #post_id = hydra_service.store_chunk(subject.encode(),b"",b"image/jpeg",_czmq_ctypes.Zchunk(contents,len(contents)))
-                print_post(post_id,subject,contents,feedback_max_chars)
-            
             elif e == binding['make_b64_post']:
-                post_id = None
-                caption = generate_words()
-                subject = "hii_image_b64: " + caption
-                contents = generate_image_bytes(caption)
-                contents = encode_b64(contents)
-                if display_created_image:
-                    decode_b64(contents)
-                post_id = hydra_service.store_string(subject.encode(),b"",b"text/plain",contents)
-                post_id = post_id.decode()
-                print_post(post_id,subject,contents,feedback_max_chars)
-            
+                make_b64_post(hydra_service,display_created_image=tweaks['preview_created'])
+
             elif e == binding['make_string_post']:
-                post_id = None
-                caption = generate_words()
-                subject = "hii_string: " + caption
-                contents = generate_words(20)
-                post_id = hydra_service.store_string(subject.encode(),b"",b"text/plain",contents.encode())
-                post_id = post_id.decode()
-                print_post(post_id,subject,contents,feedback_max_chars)
+                make_string_post(hydra_service)
+
+            elif e == binding['tweak_toggle_show_image']:
+                tweaks['preview_created'] = not tweaks['preview_created']
             
-            elif e == binding['tweak_display_image']:
-                display_created_image = not display_created_image
-                print_feedback("Display image: {}".format(display_created_image))
-                
+            elif e == binding['tweak_show_helpme']:
+                print_feedback(start_message)
+    
 def main(argv):
-    """
+    binding = {}
+    binding['make_b64_post']            =  's'
+    binding['make_chunk_post']          =  'c'
+    binding['make_file_post']           =  'f (TODO)'
+    binding['make_string_post']         =  'w'
+    binding['tweak_toggle_show_image']      =  'z'
+    binding['tweak_more_screen_bytes']  =  '<Ctrl-LEFT>'
+    binding['tweak_less_screen_bytes']  =  '<Ctrl-RIGHT>'
+    binding['tweak_show_helpme']            =  'h'
+
+    cli_description = """
     Use hydra cffi bindings to start hydra process
     and generate posts using hydra_store_string
 
     syntax: hii [-h]
     Interactive Key Bindings:
-        i:           image content post       (b64 encoded string)
-        c:           image content post       (zchunk bytes)
-        *f:          file content post        (text/zpl) 
-        s:           string content post      (random words string)
-        z:           toggle image display     (default: False)
-        Ctrl-left:   increase contents shown  (default: show all)
-        Ctrl-right:  decrease contents shown  
+        {make_chunk_post}:           image content post       (zchunk bytes)
+        {make_b64_post}:           image content post       (b64 encoded string)
+        {make_file_post}:          file content post        (text/zpl) 
+        {make_string_post}:           string content post      (random words string)
+        {tweak_toggle_show_image}:           toggle image display     (default: False)
+        {tweak_more_screen_bytes}:   increase stdout contents shown  (default: 100)
+        {tweak_less_screen_bytes}:  decrease stdout contents shown  
+        {tweak_show_helpme}:  print this  
         *up:         up id tree      (TODO)
-        *down:       down id tree    (TODO)
-        *left:       cycle peer id   (TODO)
-        *right:      cycle peer id   (TODO)
-        *space:      unassociated id (TODO)
-    
-    q exits...
+        *down:       down selected id tree    (TODO)
+        *left:       cycle selected branch id   (TODO)
+        *right:      cycle selected branch id   (TODO)
+        *space:      select selected (TODO)
+        *bacspace:   select unassociated id (TODO)
 
-    """
-    binding = {}
-    binding['make_b64_post']            =  'i'
-    binding['make_chunk_post']          =  'c'
-    binding['make_file_post']           =  'f'
-    binding['make_string_post']         =  's'
-    binding['tweak_display_image']      =  'z'
-    binding['tweak_more_screen_bytes']  =  '<Ctrl-LEFT>'
-    binding['tweak_less_screen_bytes']  =  '<Ctrl-RIGHT>'
+        (q exits...)
 
-    parser = argparse.ArgumentParser(description=main.__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
+    """.format(**binding)
+
+    parser = argparse.ArgumentParser(description=cli_description,formatter_class=argparse.RawDescriptionHelpFormatter)
     args = parser.parse_args()  
-    print(main.__doc__)
-    hydra_loop(binding)
+    hydra_loop(binding,cli_description)
+    sys.exit(0)
 
 if __name__ == "__main__":
     main(sys.argv)
