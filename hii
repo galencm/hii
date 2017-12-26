@@ -1,0 +1,194 @@
+#!/usr/bin/python3
+#     =========================================================================
+#     hii - command-line interactive tool and service for hydra
+    
+#     Copyright (c) Galen Curwen-McAdams
+
+#     This Source Code Form is subject to the terms of the Mozilla Public
+#     License, v. 2.0. If a copy of the MPL was not distributed with this
+#     file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#     =========================================================================
+
+import _hydra_ctypes 
+import czmq
+import ctypes
+import time
+from PIL import Image,ImageDraw,ImageFont
+import io
+import random, string
+from curtsies import Input
+import base64
+import os
+import argparse
+import sys
+
+def print_feedback(message):
+    print(message)
+
+def print_post(post_id,subject,contents,truncate_contents=0):
+    if truncate_contents <= 0:
+        truncate_contents = len(contents)
+        truncated_sign = "\n               \n            [Contents size: {}]".format(len(contents))
+    else:
+        truncated_sign = "\n            ...\n            [Contents size: {}]".format(len(contents))
+
+    print()
+    print("Ident:      {}".format(post_id))
+    print("Subject:    {}".format(subject))
+    print("Contents:   {}{}".format(contents[0:truncate_contents],truncated_sign))
+    print()
+    print()
+
+def generate_words(word_count=3):
+    words = []
+    with open('/usr/share/dict/words','r') as f:
+        lines = f.read().splitlines()
+        words = random.sample(lines,word_count)
+    return ' '.join(words)
+
+def generate_image_bytes(caption_overlay):
+    im = Image.new('RGBA', (500, 500), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    font = ImageFont.truetype("FreeMono.ttf", 30)
+    draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
+    stream = io.BytesIO()
+    im.save(stream,format='JPEG')
+    im.close()
+    return stream.getvalue()
+
+def encode_b64(string_container):
+    return base64.b64encode(string_container)
+
+def decode_b64(string_container):
+    if os.path.isfile(string_container):
+        with open(file,'r') as f:
+            contents = f.read()
+    else:
+        contents = string_container
+    return base64.b64decode(contents)
+
+def hydra_loop(binding):
+    
+    #init hydra service
+    directory = b'.hydra'
+    hydra_service = _hydra_ctypes.Hydra(directory)
+    hydra_service.start()
+
+    #config
+    display_created_image = False
+    feedback_max_chars = 100
+
+    with Input(keynames='curtsies') as input_generator:
+        for e in Input():
+            if e in (u'q',u'Q',u'<ESC>', u'<Ctrl-d>'):
+                del hydra_service
+                break
+            
+            elif e == binding['tweak_more_screen_bytes']:
+                feedback_max_chars +=100
+                if feedback_max_chars <= 0:
+                    print_feedback("Show all contents".format(feedback_max_chars))
+                else:
+                    print_feedback("Show max {} chars of contents".format(feedback_max_chars))
+            
+            elif e == binding['tweak_less_screen_bytes']:
+                feedback_max_chars -=100
+                if feedback_max_chars <= 0:
+                    print_feedback("Show all contents".format(feedback_max_chars))
+                else:
+                    print_feedback("Show max {} chars of contents".format(feedback_max_chars))
+            
+            elif e == binding['make_chunk_post']:
+                post_id = None
+                caption = generate_words()
+                subject = "hii_image_chunk: " + caption
+                contents = generate_image_bytes(caption)
+                #avoid zero-termination of contents
+                contents_size = len(contents)
+                p = ctypes.c_char_p(contents)
+                p2 = ctypes.cast(p,ctypes.POINTER(ctypes.c_char))
+                #print(ctypes.string_at(p,size=contents_size))
+
+                #vbindiff useful for debugging output
+                # if debug:
+                #     with open("pbytes_value.foo",'wb+') as f:
+                #         f.write(contents)
+                #     with open("cbytes_value.foo",'wb+') as f:
+                #         f.write(ctypes.string_at(p,size=contents_size))
+
+                #zchunk adds some wrapping bytes
+                chunk = czmq.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
+
+                if display_created_image:
+                    im = Image.open(io.BytesIO(contents))
+                    im.show()
+                    im.close()
+                mime_type = b"image/jpeg"
+                post_id = hydra_service.store_chunk(subject.encode(),b"",mime_type,chunk)
+                #post_id = hydra_service.store_chunk(subject.encode(),b"",b"image/jpeg",czmq.Zchunk(contents,len(contents)))
+                print_post(post_id,subject,contents,feedback_max_chars)
+            
+            elif e == binding['make_b64_post']:
+                post_id = None
+                caption = generate_words()
+                subject = "hii_image_b64: " + caption
+                contents = generate_image_bytes(caption)
+                contents = encode_b64(contents)
+                if display_created_image:
+                    decode_b64(contents)
+                post_id = hydra_service.store_string(subject.encode(),b"",b"text/plain",contents)
+                post_id = post_id.decode()
+                print_post(post_id,subject,contents,feedback_max_chars)
+            
+            elif e == binding['make_string_post']:
+                post_id = None
+                caption = generate_words()
+                subject = "hii_string: " + caption
+                contents = generate_words(20)
+                post_id = hydra_service.store_string(subject.encode(),b"",b"text/plain",contents.encode())
+                post_id = post_id.decode()
+                print_post(post_id,subject,contents,feedback_max_chars)
+            
+            elif e == binding['tweak_display_image']:
+                display_created_image = not display_created_image
+                print_feedback("Display image: {}".format(display_created_image))
+                
+def main(argv):
+    """
+    Use hydra cffi bindings to start hydra process
+    and generate posts using hydra_store_string
+
+    syntax: hii [-h]
+    Interactive Key Bindings:
+        i:           image content post       (b64 encoded string)
+        c:           image content post       (zchunk bytes)
+        *f:          file content post        (text/zpl) 
+        s:           string content post      (random words string)
+        z:           toggle image display     (default: False)
+        Ctrl-left:   increase contents shown  (default: show all)
+        Ctrl-right:  decrease contents shown  
+        *up:         up id tree      (TODO)
+        *down:       down id tree    (TODO)
+        *left:       cycle peer id   (TODO)
+        *right:      cycle peer id   (TODO)
+        *space:      unassociated id (TODO)
+    
+    q exits...
+
+    """
+    binding = {}
+    binding['make_b64_post']            =  'i'
+    binding['make_chunk_post']          =  'c'
+    binding['make_file_post']           =  'f'
+    binding['make_string_post']         =  's'
+    binding['tweak_display_image']      =  'z'
+    binding['tweak_more_screen_bytes']  =  '<Ctrl-LEFT>'
+    binding['tweak_less_screen_bytes']  =  '<Ctrl-RIGHT>'
+
+    parser = argparse.ArgumentParser(description=main.__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
+    args = parser.parse_args()  
+    print(main.__doc__)
+    hydra_loop(binding)
+
+if __name__ == "__main__":
+    main(sys.argv)
