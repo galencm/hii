@@ -45,14 +45,16 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     ```
     pip3 install --user Pillow
     pip3 install --user curtsies
+    pip3 install --user pytest
     ```  
-    Hii uses Pillow for generating images and curtsies for handling keyboard input.  
+    Hii uses Pillow for generating images, curtsies for handling keyboard input and pytest for tests.  
 
 3. **Clone repository and run**
 
     ```
     git clone https://github.com/galencm/hii
     cd hii/
+    pytest
     ./hii 
     ```
 
