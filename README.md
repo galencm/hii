@@ -64,7 +64,12 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
 
 4. **(if missing) Install Unifont**
 
-    `hii` uses unifont for the text overlays on generated images
+    `hii` tries to use unifont for the text overlays on generated images. 
+
+    Run to see if installed:
+    ```
+    fc-list | grep unifont
+    ```
 
     * debian package
         ```

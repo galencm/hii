@@ -58,29 +58,16 @@ def generate_words(word_count=3):
 def generate_image_bytes(caption_overlay=None,display_created_image=False):
     if caption_overlay is None:
         caption_overlay = ""
-    #unifont-fonts package
-    #http://unifoundry.com/unifont.html
-    #/usr/share/fonts/unifont/unifont.ttf
+
     im = Image.new('RGBA', (500, 500), (0, 0, 0, 0))
     draw = ImageDraw.Draw(im)
     try:
         font = ImageFont.truetype("unifont.ttf", 30)
         draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
     except OSError as ex:
+        font = ImageFont.truetype("LiberationMono-Regular.ttf", 30)
+        draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
         print(ex)
-        print(textwrap.dedent("""Is unifont installed? \n
-    debian:
-        
-        sudo apt-get install ttf-unifont
-        
-    fedora:
-        
-        sudo dnf install unifont-fonts
-        
-    from file:
-        
-        see README
-            """))
 
     stream = io.BytesIO()
     im.save(stream,format='JPEG')
