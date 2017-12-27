@@ -40,7 +40,7 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     https://github.com/galencm/hydra
     ```
 
-2. **Install python modules.**
+2. **Install python modules**
 
     ```
     pip3 install --user Pillow
@@ -48,7 +48,6 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     pip3 install --user pytest
     ```  
     Hii uses Pillow for generating images, curtsies for handling keyboard input and pytest for tests.  
-
 3. **Clone repository and run**
 
     ```
@@ -57,6 +56,11 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     pytest
     ./hii 
     ```
+    To see image generated from unicode overlay test:
+    ```
+    pytest --eye
+    ```
+
 4. **(if missing) Install Unifont**
 
     `hii` uses unifont for the text overlays on generated images
