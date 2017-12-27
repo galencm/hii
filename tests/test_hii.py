@@ -152,6 +152,10 @@ def test_chunk_post():
     chunk_blob = os.path.join("../.hydra",disk_post['location'])
     assert os.path.isfile(chunk_blob)
     assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
+    try:
+        post['contents'] = post['contents'].encode()
+    except AttributeError:
+        pass
     assert len(post['contents']) == os.path.getsize(chunk_blob)
 
     # having trouble getting Zchunk_read to work
@@ -196,11 +200,15 @@ def test_string_post():
     chunk_blob = os.path.join("../.hydra",disk_post['location'])
     assert os.path.isfile(chunk_blob)
     assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
+    try:
+        post['contents'] = post['contents'].encode()
+    except AttributeError:
+        pass
     assert len(post['contents']) == os.path.getsize(chunk_blob)
     #check contents
 
     with open(chunk_blob,'rb') as f:
-        assert f.read() == post['contents'].encode()
+        assert f.read() == post['contents']
 
     #cleanup post/blob    
     os.remove(latest_post)
@@ -224,6 +232,10 @@ def test_b64_post():
     chunk_blob = os.path.join("../.hydra",disk_post['location'])
     assert os.path.isfile(chunk_blob)
     assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
+    try:
+        post['contents'] = post['contents'].encode()
+    except AttributeError:
+        pass
     assert len(post['contents']) == os.path.getsize(chunk_blob)
     
     #check contents, b64 contents already bytes
