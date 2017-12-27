@@ -15,10 +15,25 @@ sys.path.insert(0, '.')
 import czmq
 import ctypes
 import hashlib
+import textwrap
 
-def test_generate_words(word_count=3):
-    assert len(hii.generate_words().split(" ")) == 3
+@pytest.fixture()
+def show_created_onscreen(request):
+    return request.config.getoption('--eye')
 
+def test_unicode_basic_multilingual_plane_caption(show_created_onscreen):
+
+    bmp_string = textwrap.dedent("""1) आदर्श (p. 38)
+    â-darsá seeing;
+    mirror;
+    image;
+    copy;
+    -pustaka, n. copy, manuscript;
+    -maya, a. being altogether mirror.""")
+    # A Practical Sanskrit Dictionary, Macdonell, 1929
+    # http://dsal.uchicago.edu/dictionaries/macdonell/
+    image_bytes = hii.generate_image_bytes(caption_overlay=bmp_string,
+                                        display_created_image=show_created_onscreen)
 def test_generate_image_bytes():
     image_bytes = hii.generate_image_bytes()
     assert type(image_bytes) is bytes
@@ -26,6 +41,51 @@ def test_generate_image_bytes():
     image_extension = image.format
     image.close()
     assert image_extension =="JPEG" 
+
+def test_basic_multilingual_plane_string_post():
+    bmp_subject = "आदर्श"
+    bmp_contents = textwrap.dedent("""1) आदर्श (p. 38)
+    â-darsá seeing;
+    mirror;
+    image; copy;
+    -pustaka, n. copy, manuscript;
+    -maya, a. being altogether mirror.""")
+
+    post = {}
+    post['subject'] = bmp_subject
+    post['contents'] = bmp_contents
+
+    directory = b'.hydra'
+    hydra_service = _hydra_ctypes.Hydra(directory)
+    hydra_service.start()
+    post = hii.make_string_post(hydra_service,**post)
+    #stop service
+    del hydra_service
+
+    assert 'ident' in post
+    assert len(post['ident']) > 0
+    stored_posts = glob.glob('../.hydra/posts/[0-9]*')
+    latest_post = max(stored_posts, key=os.path.getctime)
+    disk_post = parse_zpl(latest_post)
+    print(disk_post)
+    assert disk_post['ident'] == post['ident']
+    chunk_blob = os.path.join("../.hydra",disk_post['location'])
+    assert os.path.isfile(chunk_blob)
+    assert os.path.getsize(chunk_blob) == int(disk_post['content-size'])
+    #encode unicode before compare with bytes
+    try:
+        post['contents'] = post['contents'].encode()
+    except AttributeError:
+        pass
+    assert len(post['contents']) == os.path.getsize(chunk_blob)
+    #check contents
+
+    with open(chunk_blob,'rb') as f:
+        assert f.read() == post['contents']
+
+    #cleanup post/blob
+    os.remove(latest_post)
+    os.remove(chunk_blob)
 
 def parse_zpl(file):
     # ZeroMQ Property Language

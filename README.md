@@ -57,7 +57,28 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     pytest
     ./hii 
     ```
+4. **(if missing) Install Unifont**
 
+    `hii` uses unifont for the text overlays on generated images
+
+    * debian package
+        ```
+        sudo apt-get install ttf-unifont
+        ```
+
+    * fedora package
+        ```
+        sudo dnf install unifont-fonts
+        ```
+
+    * download and install from file(s)
+    ```
+    wget http://unifoundry.com/pub/unifont-10.0.06/font-builds/unifont-10.0.06.ttf
+    wget http://unifoundry.com/pub/unifont-10.0.06/font-builds/unifont_upper-10.0.06.ttf
+    sudo mkdir /usr/share/fonts/unifont/
+    sudo mv unifont-10.0.06.ttf  /usr/share/fonts/unifont/
+    sudo mv unifont_upper-10.0.06.ttf  /usr/share/fonts/unifont/
+    ```
 ## <a name="note"></a> Hydra debug notes
 
 * Hydra Service directory structure
