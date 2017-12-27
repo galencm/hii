@@ -93,26 +93,30 @@ def decode_b64(string_container):
         contents = string_container
     return base64.b64decode(contents)
 
-def make_string_post(service,stdout_char_cutoff=100):
+def make_string_post(service,stdout_char_cutoff=100,**post_kwargs):
     post = {}
-    post['subject'] = "hii_string: " + generate_words()
+    post['subject'] = generate_words()
     post['mime_type']="text/plain"
     post['contents'] = generate_words(20)
     post['parent_id']=""
+
+    post.update(post_kwargs)
     # hydra returns a post identifier
     post['ident'] = hydra_string_post(service,**post).decode()
 
     print_post(post,stdout_char_cutoff)
     return post
 
-def make_b64_post(service,display_created_image=False,stdout_char_cutoff=100):
+def make_b64_post(service,display_created_image=False,stdout_char_cutoff=100,**post_kwargs):
     post = {}
     caption_on_image = generate_words()
 
-    post['subject'] = "hii_image_b64: " + caption_on_image
+    post['subject'] = caption_on_image
     post['mime_type']="text/plain"
     post['contents'] = encode_b64(generate_image_bytes(caption_on_image))
     post['parent_id']=""
+
+    post.update(post_kwargs)
     # hydra returns a post identifier
     print(type(post['contents']))
     post['ident'] = hydra_string_post(service,**post).decode() 
@@ -125,15 +129,16 @@ def make_b64_post(service,display_created_image=False,stdout_char_cutoff=100):
     print_post(post,stdout_char_cutoff)
     return post
 
-
-def make_chunk_post(service,display_created_image=False,stdout_char_cutoff=100):
+def make_chunk_post(service,display_created_image=False,stdout_char_cutoff=100,**post_kwargs):
     post = {}
     caption_on_image = generate_words()
 
-    post['subject'] = "hii_image_chunk: " + caption_on_image
+    post['subject'] = caption_on_image
     post['mime_type'] = "image/jpeg"
     post['contents'] = generate_image_bytes(caption_on_image)
     post['parent_id'] = ""
+
+    post.update(post_kwargs)
     # hydra returns a post identifier
     post['ident'] = hydra_chunk_post(service,**post).decode()
 

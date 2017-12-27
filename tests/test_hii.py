@@ -103,6 +103,36 @@ def parse_zpl(file):
                 zpl_parsed[key] = value
     return zpl_parsed
 
+def test_fail_on_post_metadata_not_in_data_model():
+    post = {}
+    hydra_service = None
+
+    post['not_in_hydra_data_model'] = "see data model," \
+                                        "in hydra README"
+    with pytest.raises(TypeError):
+        post = hii.make_string_post(hydra_service,**post)
+
+    with pytest.raises(TypeError):
+        post = hii.make_chunk_post(hydra_service,**post)
+
+def test_accept_post_metadata_in_data_model():
+    post = {}
+    hydra_service = None
+
+    post['subject'] = "..."
+    post['contents'] = "..."
+    post['mime_type'] = "text/plain"
+    #optional
+    post['parent_id'] = "..."
+
+    # AttributeError should be raised
+    # while trying to call hydra_service
+    with pytest.raises(AttributeError):
+        post = hii.make_string_post(hydra_service)
+
+    with pytest.raises(AttributeError):
+        post = hii.make_chunk_post(hydra_service)
+
 def test_chunk_post():
     #start hydra
     directory = b'.hydra'
