@@ -65,9 +65,22 @@ def generate_image_bytes(caption_overlay=None,display_created_image=False):
         font = ImageFont.truetype("unifont.ttf", 30)
         draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
     except OSError as ex:
-        font = ImageFont.truetype("FreeSerif.ttf", 30)
-        draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
-        print(ex)
+        try:
+            font = ImageFont.truetype("FreeSerif.ttf", 30)
+            draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
+        except OSError as ex:
+            #Pillow on raspberry pi cannot seem to resolve font paths
+            #so use absolute path, this is brittle
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSerif.ttf", 30)
+                draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
+            except OSError as ex:
+                font = ImageFont.load_default()
+                draw.text((0, 0), caption_overlay, font=font, fill=(255,255,255))
+                print(ex)
+            print(ex)
+
+
 
     stream = io.BytesIO()
     im.save(stream,format='JPEG')
