@@ -53,7 +53,7 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     ```
     git clone https://github.com/galencm/hii
     cd hii/
-    pytest
+    pytest -v
     ./hii 
     ```
     To see image generated from unicode overlay test:
