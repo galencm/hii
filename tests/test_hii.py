@@ -21,6 +21,11 @@ import textwrap
 def show_created_onscreen(request):
     return request.config.getoption('--eye')
 
+def test_generate_words():
+    words = hii.generate_words()
+    assert type(words) is str
+    assert len(words) > 0
+
 def test_unicode_basic_multilingual_plane_caption(show_created_onscreen):
 
     bmp_string = textwrap.dedent("""1) आदर्श (p. 38)
