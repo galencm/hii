@@ -205,7 +205,7 @@ def hydra_loop(binding,start_message=""):
     tweaks = {}
     tweaks['stdout_max_chars'] = 100
     tweaks['preview_created'] = False
-    #print after hydra_service has logged ledger to stdout
+    #print after hydra_service has logged ledger contents to stdout
     print_feedback(start_message)
     with Input(keynames='curtsies') as input_generator:
         for e in Input():
@@ -230,10 +230,12 @@ def hydra_loop(binding,start_message=""):
                  tweaks['stdout_max_chars'] -=100
 
             elif e == binding['make_chunk_post']:
-                make_chunk_post(hydra_service,display_created_image=tweaks['preview_created'])
+                make_chunk_post(hydra_service,
+                                display_created_image=tweaks['preview_created'])
 
             elif e == binding['make_b64_post']:
-                make_b64_post(hydra_service,display_created_image=tweaks['preview_created'])
+                make_b64_post(hydra_service,
+                              display_created_image=tweaks['preview_created'])
 
             elif e == binding['make_string_post']:
                 make_string_post(hydra_service)
@@ -280,7 +282,8 @@ def main(argv):
 
     """.format(**binding)
 
-    parser = argparse.ArgumentParser(description=cli_description,formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=cli_description,
+                                    formatter_class=argparse.RawDescriptionHelpFormatter)
     args = parser.parse_args()  
     hydra_loop(binding,cli_description)
     sys.exit(0)
