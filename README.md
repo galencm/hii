@@ -83,6 +83,31 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     sudo mv unifont-10.0.06.ttf  /usr/share/fonts/unifont/
     sudo mv unifont_upper-10.0.06.ttf  /usr/share/fonts/unifont/
     ```
+
+5. **(if missing) Install words**
+    `hii` uses /usr/share/dict/words as a source for text.
+
+    If the file is not found, `hii` will always use the text: "words not found"
+
+    A raspberry pi running rasbpian does not seem have a words file installed by default.
+
+    * debian package
+        ```
+        sudo aptitude install wordlist
+        ```
+        will show a metapackage with choices of words to install
+
+    * fedora package
+        ```
+        sudo dnf install unifont-fonts
+        ```
+
+    * diy
+        create a text file with one word per line. The following command overwrites any existing words
+        ```
+        sudo mv yourwords.txt /usr/share/dict/words
+        ```
+
 ## <a name="note"></a> Hydra debug notes
 
 * Hydra Service directory structure
