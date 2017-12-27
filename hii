@@ -51,6 +51,7 @@ def generate_words(word_count=3):
         words = random.sample(lines,word_count)
     return ' '.join(words)
 
+def generate_image_bytes(caption_overlay=None,display_created_image=False):
     if caption_overlay is None:
         caption_overlay = ""
     #unifont-fonts package
@@ -79,6 +80,8 @@ def generate_words(word_count=3):
 
     stream = io.BytesIO()
     im.save(stream,format='JPEG')
+    if display_created_image is True:
+        im.show()
     im.close()
     return stream.getvalue()
 
