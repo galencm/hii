@@ -46,9 +46,13 @@ def print_post(post,truncate_contents=100):
 
 def generate_words(word_count=3):
     words = []
-    with open('/usr/share/dict/words','r') as f:
-        lines = f.read().splitlines()
-        words = random.sample(lines,word_count)
+    try:
+        with open('/usr/share/dict/words','r') as f:
+            lines = f.read().splitlines()
+            words = random.sample(lines,word_count)
+    except FileNotFoundError as ex:
+        print(ex)
+        words = ['words','not','found']
     return ' '.join(words)
 
 def generate_image_bytes(caption_overlay=None,display_created_image=False):
