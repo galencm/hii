@@ -10,6 +10,7 @@ import glob
 import os
 import io
 from PIL import Image
+import shutil
 
 sys.path.insert(0, '.')
 import czmq
@@ -27,7 +28,7 @@ def test_generate_words():
     assert len(words) > 0
 
 def test_unicode_basic_multilingual_plane_caption(show_created_onscreen):
-
+    viewer_program = "display"
     bmp_string = textwrap.dedent("""1) आदर्श (p. 38)
     â-darsá seeing;
     mirror;
@@ -37,6 +38,11 @@ def test_unicode_basic_multilingual_plane_caption(show_created_onscreen):
     -maya, a. being altogether mirror.""")
     # A Practical Sanskrit Dictionary, Macdonell, 1929
     # http://dsal.uchicago.edu/dictionaries/macdonell/
+
+    if show_created_onscreen is True:
+        if shutil.which(viewer_program) is None:
+            pytest.fail("program: {program_name} not found by which\n install {program_name} or run without --eye ".format(program_name=viewer_program))
+
     image_bytes = hii.generate_image_bytes(caption_overlay=bmp_string,
                                         display_created_image=show_created_onscreen)
 def test_generate_image_bytes():

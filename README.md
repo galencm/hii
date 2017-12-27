@@ -58,8 +58,9 @@ Parent_id is currently empty. See `hii` arrow key bindings for future navigation
     ```
     To see image generated from unicode overlay test:
     ```
-    pytest --eye
+    pytest -v --eye
     ```
+    The default viewer used by Pillow is `display`, part of imagemagick. If test fails install imagemagick: `sudo apt-get install imagemagick` or `sudo dnf install imagemagick`
 
 4. **(if missing) Install Unifont**
 
