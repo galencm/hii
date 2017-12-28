@@ -101,16 +101,16 @@ def decode_b64(string_container):
     return base64.b64decode(contents)
 
 def make_string_post(service,stdout_char_cutoff=100,**post_kwargs):
+
     post = {}
     post['subject'] = generate_words()
     post['mime_type']="text/plain"
     post['contents'] = generate_words(20)
     post['parent_id']=""
-
     post.update(post_kwargs)
+
     # hydra returns a post identifier
     post['ident'] = hydra_string_post(service,**post).decode()
-
     print_post(post,stdout_char_cutoff)
     return post
 
@@ -137,22 +137,25 @@ def make_b64_post(service,display_created_image=False,stdout_char_cutoff=100,**p
     return post
 
 def make_chunk_post(service,display_created_image=False,stdout_char_cutoff=100,**post_kwargs):
+
     post = {}
-    caption_on_image = generate_words()
-
-    post['subject'] = caption_on_image
+    post['subject'] = generate_words()
     post['mime_type'] = "image/jpeg"
-    post['contents'] = generate_image_bytes(caption_on_image)
     post['parent_id'] = ""
-
     post.update(post_kwargs)
-    # hydra returns a post identifier
-    post['ident'] = hydra_chunk_post(service,**post).decode()
+    # generate image after updating post with
+    # any passed in post kwargs
+    # for now this means subject will always be
+    # overlaid on image
+    post['contents'] = generate_image_bytes(post['subject'])
 
     if display_created_image:
         im = Image.open(io.BytesIO(post['contents']))
         im.show()
         im.close()
+
+    # hydra returns a post identifier
+    post['ident'] = hydra_chunk_post(service,**post).decode()
     print_post(post,stdout_char_cutoff)
     return post
 
@@ -162,6 +165,7 @@ def hydra_string_post(service,*,subject,parent_id,mime_type,contents):
     except AttributeError:
         #already encoded
         pass
+
     post_ident = service.store_string(subject.encode(),
                                     parent_id.encode(),
                                     mime_type.encode(),
@@ -169,9 +173,7 @@ def hydra_string_post(service,*,subject,parent_id,mime_type,contents):
     return post_ident
 
 def hydra_chunk_post(service,*,subject,parent_id,mime_type,contents,debug_to_file=False):
-    mime_type = mime_type.encode()
-    #import czmq
-    #avoid zero-termination of contents
+    #avoid zero-termination in contents
     contents_size = len(contents)
     p = ctypes.c_char_p(contents)
     p2 = ctypes.cast(p,ctypes.POINTER(ctypes.c_char))
@@ -187,11 +189,13 @@ def hydra_chunk_post(service,*,subject,parent_id,mime_type,contents,debug_to_fil
 
     #zchunk adds some wrapping bytes
     chunk = czmq.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
+    #print(ctypes.string_at(p,size=contents_size))
     #this gives a type error, see note on import czmq
     #chunk = _czmq_ctypes.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
     post_ident = service.store_chunk(subject.encode(),
                                     parent_id.encode(),
-                                    mime_type,chunk)
+                                    mime_type.encode(),
+                                    chunk)
     return post_ident
 
 def end_service(service):
