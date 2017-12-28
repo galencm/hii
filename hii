@@ -170,6 +170,8 @@ def end_service(service):
     del service
 
 def hydra_loop(binding,start_message=""):
+    loop_exit_bindings = (u'q',u'Q',u'<ESC>', u'<Ctrl-d>')
+
     #init hydra service
     directory = b'.hydra'
     hydra_service = _hydra_ctypes.Hydra(directory)
@@ -186,6 +188,8 @@ def hydra_loop(binding,start_message=""):
             #run on any input
             if e in set(binding.values()):
                 print(tweaks)
+            elif e in loop_exit_bindings:
+                pass
             else:
                 print("** unbound key **")
                 print("** showing help **")
@@ -193,7 +197,7 @@ def hydra_loop(binding,start_message=""):
                 print_feedback(start_message)
 
             #handle bindings
-            if e in (u'q',u'Q',u'<ESC>', u'<Ctrl-d>'):
+            if e in loop_exit_bindings:
                 end_service(hydra_service)
                 sys.exit(0)
 
