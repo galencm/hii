@@ -105,7 +105,6 @@ def make_string_post(service,stdout_char_cutoff=100,**post_kwargs):
 def make_chunk_post(service,display_created_image=False,stdout_char_cutoff=100,**post_kwargs):
 
     post = {}
-    post['subject'] = generate_words()
     post['mime_type'] = "image/jpeg"
     post['parent_id'] = ""
     post.update(post_kwargs)
@@ -113,7 +112,11 @@ def make_chunk_post(service,display_created_image=False,stdout_char_cutoff=100,*
     # any passed in post kwargs
     # for now this means subject will always be
     # overlaid on image
-    post['contents'] = generate_image_bytes(post['subject'])
+    if not 'subject' in post:
+        post['subject'] = generate_words()
+
+    if not 'contents' in post:
+        post['contents'] = generate_image_bytes(post['subject'])
 
     if display_created_image:
         im = Image.open(io.BytesIO(post['contents']))
@@ -139,11 +142,16 @@ def hydra_string_post(service,*,subject,parent_id,mime_type,contents):
     return post_ident
 
 def hydra_chunk_post(service,*,subject,parent_id,mime_type,contents,debug_to_file=False):
+    try:
+        contents = contents.encode()
+    except AttributeError:
+        pass
+
     #avoid zero-termination in contents
     contents_size = len(contents)
     p = ctypes.c_char_p(contents)
     p2 = ctypes.cast(p,ctypes.POINTER(ctypes.c_char))
-    #print(ctypes.string_at(p,size=contents_size))
+    print(ctypes.string_at(p,size=contents_size))
 
     #vbindiff useful for debugging output
     if debug_to_file:
