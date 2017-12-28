@@ -21,7 +21,6 @@ from PIL import Image,ImageDraw,ImageFont
 import io
 import random, string
 from curtsies import Input
-import base64
 import os
 import argparse
 import sys
@@ -89,17 +88,6 @@ def generate_image_bytes(caption_overlay=None,display_created_image=False):
     im.close()
     return stream.getvalue()
 
-def encode_b64(string_container):
-    return base64.b64encode(string_container)
-
-def decode_b64(string_container):
-    if os.path.isfile(string_container):
-        with open(file,'r') as f:
-            contents = f.read()
-    else:
-        contents = string_container
-    return base64.b64decode(contents)
-
 def make_string_post(service,stdout_char_cutoff=100,**post_kwargs):
 
     post = {}
@@ -111,28 +99,6 @@ def make_string_post(service,stdout_char_cutoff=100,**post_kwargs):
 
     # hydra returns a post identifier
     post['ident'] = hydra_string_post(service,**post).decode()
-    print_post(post,stdout_char_cutoff)
-    return post
-
-def make_b64_post(service,display_created_image=False,stdout_char_cutoff=100,**post_kwargs):
-    post = {}
-    caption_on_image = generate_words()
-
-    post['subject'] = caption_on_image
-    post['mime_type']="text/plain"
-    post['contents'] = encode_b64(generate_image_bytes(caption_on_image))
-    post['parent_id']=""
-
-    post.update(post_kwargs)
-    # hydra returns a post identifier
-    print(type(post['contents']))
-    post['ident'] = hydra_string_post(service,**post).decode() 
-    
-    if display_created_image is True:
-        image_bytes = decode_b64(post['contents'])
-        im = Image.open(io.BytesIO(image_bytes))
-        im.show()
-        im.close()
     print_post(post,stdout_char_cutoff)
     return post
 
@@ -241,10 +207,6 @@ def hydra_loop(binding,start_message=""):
                 make_chunk_post(hydra_service,
                                 display_created_image=tweaks['preview_created'])
 
-            elif e == binding['make_b64_post']:
-                make_b64_post(hydra_service,
-                              display_created_image=tweaks['preview_created'])
-
             elif e == binding['make_string_post']:
                 make_string_post(hydra_service)
 
@@ -256,7 +218,6 @@ def hydra_loop(binding,start_message=""):
     
 def main(argv):
     binding = {}
-    binding['make_b64_post']            =  's'
     binding['make_chunk_post']          =  'c'
     binding['make_file_post']           =  'f (TODO)'
     binding['make_string_post']         =  'w'
@@ -272,7 +233,6 @@ def main(argv):
     syntax: hii [-h]
     Interactive Key Bindings:
         {make_chunk_post}:           image content post       (zchunk bytes)
-        {make_b64_post}:           image content post       (b64 encoded string)
         {make_file_post}:          file content post        (text/zpl) 
         {make_string_post}:           string content post      (random words string)
         {tweak_toggle_show_image}:           toggle image display     (default: False)

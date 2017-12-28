@@ -21,7 +21,6 @@ Post mimetypes and contents:
 |content | mimetype   |    format        | comments
 |--------|------------|------------------|-----------
 |image   | image/jpeg |    zchunk        | image with words overlaid
-|image   | text/plain |    base64 string | 
 |words   | text/plain |    string        | /usr/share/dict/words 
 |file    | text/zpl   |    file?         | TODO
 
