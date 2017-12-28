@@ -132,7 +132,12 @@ The post subject and `text/plain` contents use words randomly picked from /usr/s
     
     ```
     inotifywait -e modify,create,delete -r .hydra/ -m
-    ```  
+    ```
+    or use the script
+    ```
+    ./tools/hii_showfflow.sh -h
+    ```
+
 
 * Diff binaries using `vbindiff`
 
