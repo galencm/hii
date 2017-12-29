@@ -25,6 +25,18 @@ import os
 import argparse
 import sys
 import textwrap
+import hashlib
+
+def calc_sha1(hash_this):
+    # return sha1 in uppercase hex
+    try:
+        hash_this = hash_this.encode()
+    except AttributeError:
+        pass
+
+    sha1_hash = hashlib.sha1()
+    sha1_hash.update(hash_this)
+    return sha1_hash.hexdigest().upper()
 
 def print_feedback(message):
     print(message)
@@ -161,11 +173,12 @@ def hydra_chunk_post(service,*,subject,parent_id,mime_type,contents,debug_to_fil
         with open("c_pointer_bytes_value.foo",'wb+') as f:
             f.write(ctypes.string_at(p,size=contents_size))
 
-    #zchunk adds some wrapping bytes
     chunk = czmq.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
-    #print(ctypes.string_at(p,size=contents_size))
-    #this gives a type error, see note on import czmq
-    #chunk = _czmq_ctypes.Zchunk(ctypes.string_at(p,size=contents_size),contents_size)
+
+    #check that zchunk contains correct data
+    # before store_chunk call
+    assert chunk.digest().decode() == calc_sha1(contents)
+
     post_ident = service.store_chunk(subject.encode(),
                                     parent_id.encode(),
                                     mime_type.encode(),

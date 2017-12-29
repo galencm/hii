@@ -215,3 +215,87 @@ def test_string_post(hydra_service):
     #cleanup post/blob    
     os.remove(latest_post)
     os.remove(chunk_blob)
+
+def calc_sha1(hash_this):
+    # return sha1 in uppercase hex
+    try:
+        hash_this = hash_this.encode()
+    except AttributeError:
+        pass
+
+    sha1_hash = hashlib.sha1()
+    sha1_hash.update(hash_this)
+    return sha1_hash.hexdigest().upper()
+
+def test_duplicate_content_chunk_string(hydra_service):
+    # post the same content multiple times
+    # should create / overwrite one blob
+    # with correct sha1
+
+    repetitive_posts = 3
+
+    #clear post directory
+    try:
+        shutil.rmtree('../.hydra/posts')
+    except FileNotFoundError:
+        pass
+
+    for _ in range(repetitive_posts):
+        post = {}
+        # supply content string
+        post['contents'] = "contents for a blob!"
+        post_id = hii.make_chunk_post(hydra_service,**post)
+
+    blobs = glob.glob('../.hydra/posts/blobs/*')
+    assert len(blobs) == 1
+
+    with open(blobs[0],'rb') as f:
+        blob_contents = f.read()
+    assert blob_contents
+
+    blob_fname_sha1 = blobs[0].rsplit("/")[-1].upper()
+    blob_fcontents_sha1 = calc_sha1(blob_contents)
+    blob_source_sha1  = calc_sha1(post['contents'])
+
+    print("all hashes should be the same:\n")
+    print("sha1 source (correct):     {}".format(blob_source_sha1))
+    print("sha1 filename:             {}".format(blob_fname_sha1))
+    print("sha1 file contents:        {}".format(blob_fcontents_sha1))
+    assert blob_fname_sha1 == blob_fcontents_sha1 == blob_source_sha1
+
+def test_duplicate_content_chunk_image(hydra_service,reference_jpeg):
+    # post the same content multiple times
+    # should create / overwrite one blob
+    # with correct sha1
+
+    repetitive_posts = 3
+    post = {}
+
+    #clear post directory
+    try:
+        shutil.rmtree('../.hydra/posts')
+    except FileNotFoundError:
+        pass
+
+    for _ in range(repetitive_posts):
+        post = {}
+        # supply content image bytes
+        post['contents'] = reference_jpeg
+        post_id = hii.make_chunk_post(hydra_service,**post)
+
+    blobs = glob.glob('../.hydra/posts/blobs/*')
+    assert len(blobs) == 1
+
+    with open(blobs[0],'rb') as f:
+        blob_contents = f.read()
+    assert blob_contents
+
+    blob_fname_sha1 = blobs[0].rsplit("/")[-1].upper()
+    blob_fcontents_sha1 = calc_sha1(blob_contents)
+    blob_source_sha1  = calc_sha1(post['contents'])
+
+    print("all hashes should be the same:\n")
+    print("sha1 source (correct):     {}".format(blob_source_sha1))
+    print("sha1 filename:             {}".format(blob_fname_sha1))
+    print("sha1 file contents:        {}".format(blob_fcontents_sha1))
+    assert blob_fname_sha1 == blob_fcontents_sha1 == blob_source_sha1
