@@ -4,14 +4,15 @@ import sys
 sys.path.insert(0, './')
 import imp
 hii = imp.load_source('hii', './hii')
+import _hydra_ctypes
 import pytest
 import glob
 import os
 import io
 from PIL import Image
 import shutil
-import hashlib
 
+sys.path.insert(0, '.')
 import czmq
 import ctypes
 import hashlib
@@ -52,7 +53,7 @@ def test_generate_image_bytes():
     image.close()
     assert image_extension =="JPEG" 
 
-def test_basic_multilingual_plane_string_post(hydra_service):
+def test_basic_multilingual_plane_string_post():
     bmp_subject = "आदर्श"
     bmp_contents = textwrap.dedent("""1) आदर्श (p. 38)
     â-darsá seeing;
@@ -64,7 +65,13 @@ def test_basic_multilingual_plane_string_post(hydra_service):
     post = {}
     post['subject'] = bmp_subject
     post['contents'] = bmp_contents
+
+    directory = b'.hydra'
+    hydra_service = _hydra_ctypes.Hydra(directory)
+    hydra_service.start()
     post = hii.make_string_post(hydra_service,**post)
+    #stop service
+    del hydra_service
 
     assert 'ident' in post
     assert len(post['ident']) > 0
@@ -82,8 +89,8 @@ def test_basic_multilingual_plane_string_post(hydra_service):
     except AttributeError:
         pass
     assert len(post['contents']) == os.path.getsize(chunk_blob)
-
     #check contents
+
     with open(chunk_blob,'rb') as f:
         assert f.read() == post['contents']
 
@@ -137,15 +144,21 @@ def test_accept_post_metadata_in_data_model():
     with pytest.raises(AttributeError):
         post = hii.make_chunk_post(hydra_service)
 
-def test_chunk_post(hydra_service):
-
+def test_chunk_post():
+    #start hydra
+    directory = b'.hydra'
+    hydra_service = _hydra_ctypes.Hydra(directory)
+    hydra_service.start()
     post = hii.make_chunk_post(hydra_service)
+    #stop service
+    del hydra_service
 
     assert 'ident' in post
     assert len(post['ident']) > 0
     stored_posts = glob.glob('../.hydra/posts/[0-9]*')
     latest_post = max(stored_posts, key=os.path.getctime)
     disk_post = parse_zpl(latest_post)
+    print(disk_post)
     assert disk_post['ident'] == post['ident']
     chunk_blob = os.path.join("../.hydra",disk_post['location'])
     assert os.path.isfile(chunk_blob)
@@ -154,8 +167,6 @@ def test_chunk_post(hydra_service):
         post['contents'] = post['contents'].encode()
     except AttributeError:
         pass
-    # should this equality be tested?
-    # zchunk has a small header
     assert len(post['contents']) == os.path.getsize(chunk_blob)
 
     # having trouble getting Zchunk_read to work
@@ -182,8 +193,13 @@ def test_chunk_post(hydra_service):
     os.remove(latest_post)
     os.remove(chunk_blob)
 
-def test_string_post(hydra_service):
+def test_string_post():
+    directory = b'.hydra'
+    hydra_service = _hydra_ctypes.Hydra(directory)
+    hydra_service.start()
     post = hii.make_string_post(hydra_service)
+    #stop service
+    del hydra_service
 
     assert 'ident' in post
     assert len(post['ident']) > 0
@@ -208,54 +224,3 @@ def test_string_post(hydra_service):
     #cleanup post/blob    
     os.remove(latest_post)
     os.remove(chunk_blob)
-
-def test_chunk_hashing_string(hydra_service):
-    runs = 3
-    try:
-        shutil.rmtree('../.hydra/posts')
-    except FileNotFoundError:
-        pass
-    deterministic_post = {}
-    deterministic_post['contents'] = "contents for a blob!"
-    post_content_sha1 = hashlib.sha1()
-    post_content_sha1.update(deterministic_post['contents'].encode())
-
-    for _ in range(runs):
-        post = hii.make_chunk_post(hydra_service,**deterministic_post)
-
-    content_blobs = glob.glob('../.hydra/posts/blobs/*')
-    print(content_blobs)
-    assert len(content_blobs) == 1
-
-    blob_sha1 = content_blobs[0].rsplit("/")[-1]
-    print(blob_sha1,post_content_sha1)
-    assert post_content_sha1.hexdigest().upper() == blob_sha1.upper()
-
-def test_chunk_hashing_image(hydra_service):
-    runs = 3
-    try:
-        shutil.rmtree('../.hydra/posts')
-    except FileNotFoundError:
-        pass
-    input_post = {}
-    input_post['subject'] = 'image hash test'
-    input_post['parent_id'] = ''
-    input_post['mime_type'] = 'image/jpeg'
-    input_post['contents'] = hii.generate_image_bytes(caption_overlay="an image with text to"\
-                                                                    "be stored in a blob!")
-    post_content_sha1 = hashlib.sha1()
-    post_content_sha1.update(input_post['contents'])
-
-    for _ in range(runs):
-        post = hii.hydra_chunk_post(hydra_service,**input_post)
-
-    content_blobs = glob.glob('../.hydra/posts/blobs/*')
-    print(os.path.abspath(content_blobs[0]))
-    print(content_blobs)
-    assert len(content_blobs) == 1
-
-    blob_sha1 = content_blobs[0].rsplit("/")[-1]
-    blob_sha1 = blob_sha1.upper()
-    post_sha1 = post_content_sha1.hexdigest().upper()
-    print(post_sha1,blob_sha1)
-    assert post_sha1 == blob_sha1
