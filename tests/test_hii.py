@@ -4,15 +4,12 @@ import sys
 sys.path.insert(0, './')
 import imp
 hii = imp.load_source('hii', './hii')
-import _hydra_ctypes
 import pytest
 import glob
 import os
 import io
 from PIL import Image
 import shutil
-
-sys.path.insert(0, '.')
 import czmq
 import ctypes
 import hashlib
@@ -53,7 +50,7 @@ def test_generate_image_bytes():
     image.close()
     assert image_extension =="JPEG" 
 
-def test_basic_multilingual_plane_string_post():
+def test_basic_multilingual_plane_string_post(hydra_service):
     bmp_subject = "आदर्श"
     bmp_contents = textwrap.dedent("""1) आदर्श (p. 38)
     â-darsá seeing;
@@ -65,13 +62,7 @@ def test_basic_multilingual_plane_string_post():
     post = {}
     post['subject'] = bmp_subject
     post['contents'] = bmp_contents
-
-    directory = b'.hydra'
-    hydra_service = _hydra_ctypes.Hydra(directory)
-    hydra_service.start()
     post = hii.make_string_post(hydra_service,**post)
-    #stop service
-    del hydra_service
 
     assert 'ident' in post
     assert len(post['ident']) > 0
@@ -115,6 +106,10 @@ def parse_zpl(file):
     return zpl_parsed
 
 def test_fail_on_post_metadata_not_in_data_model():
+    # service is not passed in since
+    # just testing that post dict is rejected
+    # before calling service    
+
     post = {}
     hydra_service = None
 
@@ -127,6 +122,10 @@ def test_fail_on_post_metadata_not_in_data_model():
         post = hii.make_chunk_post(hydra_service,**post)
 
 def test_accept_post_metadata_in_data_model():
+    # service is not passed in since
+    # just testing that post dict is accepted
+    # before calling service
+
     post = {}
     hydra_service = None
 
@@ -136,22 +135,18 @@ def test_accept_post_metadata_in_data_model():
     #optional
     post['parent_id'] = "..."
 
-    # AttributeError should be raised
-    # while trying to call hydra_service
+    # post is good so an AttributeError 
+    # should be raised while trying to call
+    # hydra_service
     with pytest.raises(AttributeError):
         post = hii.make_string_post(hydra_service)
 
     with pytest.raises(AttributeError):
         post = hii.make_chunk_post(hydra_service)
 
-def test_chunk_post():
-    #start hydra
-    directory = b'.hydra'
-    hydra_service = _hydra_ctypes.Hydra(directory)
-    hydra_service.start()
+def test_chunk_post(hydra_service):
+
     post = hii.make_chunk_post(hydra_service)
-    #stop service
-    del hydra_service
 
     assert 'ident' in post
     assert len(post['ident']) > 0
@@ -193,13 +188,9 @@ def test_chunk_post():
     os.remove(latest_post)
     os.remove(chunk_blob)
 
-def test_string_post():
-    directory = b'.hydra'
-    hydra_service = _hydra_ctypes.Hydra(directory)
-    hydra_service.start()
+def test_string_post(hydra_service):
+
     post = hii.make_string_post(hydra_service)
-    #stop service
-    del hydra_service
 
     assert 'ident' in post
     assert len(post['ident']) > 0
