@@ -16,16 +16,15 @@ Begun while trying to make a minimal python version of `hydrad`. Then used to se
 
 Uses zproject-generated python bindings for Hydra and Czmq(for Zchunk).
 
-Post mimetypes and contents:
+| test with             |  mimetype   | hii sends post content   |
+|---------------------|-------------|-----------------|
+|image reference      | image/jpeg  |   same tiny image    |
+|image generative     | image/jpeg  |   random image of words  |
+|string reference     | text/plain  |   same informative string   |
+|string generative    | text/plain  |   random words  |
+|file                 | text/zpl    |   _TODO_        |
 
-| content| mimetype   |    encoding format        | hii generates | 
-|--------|------------|------------------|--------|
-|image   | image/jpeg |    zchunk        | image of words | 
-|string  | text/plain |    string        | words  | 
-|file    | text/zpl   |              | _TODO_  | 
-
-
-The post subject and `text/plain` contents use words randomly picked from /usr/share/dict/words 
+_words are randomly picked from /usr/share/dict/words_
 
 ## Install
 
