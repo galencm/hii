@@ -133,7 +133,7 @@ def test_accept_post_metadata_in_data_model():
     post['contents'] = "..."
     post['mime_type'] = "text/plain"
     #optional
-    post['parent_id'] = "..."
+    post['parent_id'] = ""
 
     # post is good so an AttributeError 
     # should be raised while trying to call
