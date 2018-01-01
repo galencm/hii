@@ -184,10 +184,6 @@ def test_chunk_post(hydra_service):
     #TODO zchunk.read returns byte *
     assert raw_chunk == bytearray.fromhex(chunk.strhex().decode())
 
-    #cleanup post/blob
-    os.remove(latest_post)
-    os.remove(chunk_blob)
-
 def test_string_post(hydra_service):
 
     post = hii.make_string_post(hydra_service)
@@ -211,10 +207,6 @@ def test_string_post(hydra_service):
 
     with open(chunk_blob,'rb') as f:
         assert f.read() == post['contents']
-
-    #cleanup post/blob    
-    os.remove(latest_post)
-    os.remove(chunk_blob)
 
 def calc_sha1(hash_this):
     # return sha1 in uppercase hex
@@ -248,12 +240,13 @@ def test_duplicate_content_chunk_string(hydra_service):
 
     blobs = glob.glob('../.hydra/posts/blobs/*')
     assert len(blobs) == 1
+    blob = blobs[0]
 
-    with open(blobs[0],'rb') as f:
+    with open(blob,'rb') as f:
         blob_contents = f.read()
     assert blob_contents
 
-    blob_fname_sha1 = blobs[0].rsplit("/")[-1].upper()
+    blob_fname_sha1 = blob.rsplit("/")[-1].upper()
     blob_fcontents_sha1 = calc_sha1(blob_contents)
     blob_source_sha1  = calc_sha1(post['contents'])
 
@@ -285,12 +278,13 @@ def test_duplicate_content_chunk_image(hydra_service,reference_jpeg):
 
     blobs = glob.glob('../.hydra/posts/blobs/*')
     assert len(blobs) == 1
+    blob = blobs[0]
 
-    with open(blobs[0],'rb') as f:
+    with open(blob,'rb') as f:
         blob_contents = f.read()
     assert blob_contents
 
-    blob_fname_sha1 = blobs[0].rsplit("/")[-1].upper()
+    blob_fname_sha1 = blob.rsplit("/")[-1].upper()
     blob_fcontents_sha1 = calc_sha1(blob_contents)
     blob_source_sha1  = calc_sha1(post['contents'])
 

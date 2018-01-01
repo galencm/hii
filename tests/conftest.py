@@ -3,6 +3,8 @@ import sys
 sys.path.insert(0, './')
 import _hydra_ctypes
 import binascii
+import glob
+import os
 
 @pytest.fixture(scope="session", autouse=True)
 def hydra_service(request):
@@ -10,13 +12,24 @@ def hydra_service(request):
     hydra_node = _hydra_ctypes.Hydra(directory)
     hydra_node.start()
     yield hydra_node
+    #clean unless --no-clean is used
+    if not request.config.getoption('--no-clean'):
+        blobs = glob.glob('../.hydra/posts/blobs/*')
+        posts = glob.glob('../.hydra/posts/*')
+        for file in [*blobs,*posts]:
+            try:
+                os.remove(file)
+            except IsADirectoryError:
+                pass
     # end hydra service 
-    # at end of tests
     del hydra_node
 
 def pytest_addoption(parser):
     parser.addoption("--eye", action="store_true",
         help="show image generated from unicode overlay test")
+    parser.addoption("--no-clean", action="store_true",
+        help="do not delete created files")
+
 
 @pytest.fixture(scope="session", autouse=True)
 def reference_jpeg(request):
