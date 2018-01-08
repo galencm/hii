@@ -124,7 +124,7 @@ _words are randomly picked from /usr/share/dict/words_
     .hydra
     .hydra/peers
     .hydra/posts
-    .hydra/blobs
+    .hydra/posts/blobs
     ```
 
 * Watch directories for filesystem changes using `inotifywait` 
